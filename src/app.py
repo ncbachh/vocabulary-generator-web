@@ -25,6 +25,20 @@ def main():
     pronunciations, and examples from the Oxford Learner's Dictionary.
     """)
 
+    # Sidebar for Settings
+    st.sidebar.title("Settings")
+    use_vi = st.sidebar.checkbox("Enable Vietnamese Translation", value=False, help="Use AI to translate English definitions into Vietnamese.")
+    
+    api_key = ""
+    if use_vi:
+        # Check for secret first, otherwise show input
+        api_key = st.sidebar.text_input("OpenRouter API Key", type="password", help="Get your key from https://openrouter.ai/keys")
+        if not api_key and "OPENROUTER_API_KEY" in st.secrets:
+            api_key = st.secrets["OPENROUTER_API_KEY"]
+            st.sidebar.info("Using API key from secrets.")
+        elif not api_key:
+            st.sidebar.warning("Please enter your OpenRouter API Key to enable translation.")
+
     # Initialize session state
     if "docx_file" not in st.session_state:
         st.session_state.docx_file = None
@@ -40,8 +54,6 @@ def main():
     col1, col2 = st.columns([1, 4])
     with col1:
         filename_base = st.text_input("Filename:", value="vocabulary", placeholder="e.g. my_words")
-        # Ensure we always have a displayable name for the internal logic
-        display_filename = filename_base + ".docx" if filename_base and not filename_base.endswith(".docx") else filename_base
 
     with col2:
         st.write("") # Spacer
@@ -49,20 +61,22 @@ def main():
         generate_btn = st.button("Generate Document", type="primary", disabled=not words)
 
     if generate_btn:
-        # 1. Empty Input Validation
+        # Validations
         if not filename_base.strip():
-            st.error("❌ Filename is required. Please enter a name for your file.")
+            st.error("❌ Filename is required.")
             return
 
-        # 2. Invalid Character Check
         if not is_valid_filename(filename_base):
             st.error('❌ Invalid filename. Please avoid using special characters: \\ / : * ? " < > |')
+            return
+            
+        if use_vi and not api_key:
+            st.error("❌ OpenRouter API Key is required for Vietnamese translation.")
             return
 
         st.session_state.docx_file = None
         st.session_state.failed_words = []
         
-        # 4. Title Formatting: Derived from filename
         doc_title = filename_base.upper()
         
         progress_bar = st.progress(0.0)
@@ -75,16 +89,20 @@ def main():
 
         try:
             with st.spinner("Fetching data and generating document..."):
-                doc, failed_words = create_vocabulary_docx(words, title=doc_title, progress_callback=update_progress)
+                doc, failed_words = create_vocabulary_docx(
+                    words, 
+                    title=doc_title, 
+                    use_vi_translation=use_vi, 
+                    api_key=api_key,
+                    progress_callback=update_progress
+                )
                 
-                # Save to memory buffer
                 buffer = io.BytesIO()
                 doc.save(buffer)
                 buffer.seek(0)
                 
                 st.session_state.docx_file = buffer
                 st.session_state.failed_words = failed_words
-                # Store the successful filename to ensure download matches the validation
                 st.session_state.final_filename = filename_base + ".docx" if not filename_base.lower().endswith(".docx") else filename_base
                 
             st.success("Generation complete!")
