@@ -31,7 +31,7 @@ def main():
     
     col1, col2 = st.columns([1, 4])
     with col1:
-        filename_base = st.text_input("Filename:", value="vocabulary")
+        filename_base = st.text_input("Filename:", placeholder="vocabulary")
         filename = filename_base + ".docx" if not filename_base.endswith(".docx") else filename_base
 
     with col2:
