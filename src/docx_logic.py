@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Cm, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 import time
 import copy
 import re
@@ -103,7 +104,7 @@ def fetch_word_data(word):
     
     # If exactly two words separated by space and no hyphen exists, use hyphenated version for URL
     parts = clean_word.split()
-    if (len(parts) == 2 or len(parts)) == 3 and '-' not in clean_word:
+    if (len(parts) == 2 or len(parts) == 3) and '-' not in clean_word:
         url_word = "-".join(parts)
         
     url = f"https://www.oxfordlearnersdictionaries.com/definition/english/{url_word}"
@@ -137,7 +138,7 @@ def fetch_word_data(word):
                 senses_data.append({
                     "word_info": word_info,
                     "meaning_data": meaning_data,
-                    "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else "No examples found"
+                    "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else ""
                 })
         else:
             for i, sense in enumerate(senses[:3]):
@@ -151,7 +152,7 @@ def fetch_word_data(word):
                 senses_data.append({
                     "word_info": word_info,
                     "meaning_data": meaning_data,
-                    "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else "No examples found"
+                    "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else ""
                 })
                 
         return senses_data
@@ -245,6 +246,10 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
 
     doc = Document()
     
+    # Global Paragraph Formatting: Spacing After: 8pt
+    style = doc.styles['Normal']
+    style.paragraph_format.space_after = Pt(8)
+    
     # Page Margins
     section = doc.sections[0]
     section.top_margin = Cm(2.54)
@@ -265,14 +270,16 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
     # Header cells and Fixed Widths
     widths = [0.85, 3.8, 6.88, 6.88]
     hdr_cells = table.rows[0].cells
-    headers = ['No', 'Words', 'Meaning', 'Examples']
+    headers = ['No', 'WORDS', 'MEANING', 'EXAMPLES']
     
     for idx, (cell, text) in enumerate(zip(hdr_cells, headers)):
         cell.text = text
         set_cell_width(cell, widths[idx])
         for paragraph in cell.paragraphs:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in paragraph.runs:
                 run.font.size = Pt(12)
+                run.bold = True
 
     # Fill data
     for i, (word, senses) in enumerate(all_word_data, 1):
@@ -330,7 +337,6 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
                 p.add_run('\n')
                 run_vi = p.add_run(f"({sense['vi_translation']})")
                 run_vi.italic = True
-                run_vi.font.size = Pt(11) 
             
             row_cells[3].text = sense['examples']
             
@@ -338,8 +344,7 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
             for cell in row_cells:
                 for paragraph in cell.paragraphs:
                     for run in paragraph.runs:
-                        if run.font.size != Pt(11):
-                            run.font.size = Pt(12)
+                        run.font.size = Pt(12)
             
         end_row_idx = len(table.rows) - 1
         if start_row_idx != end_row_idx:
