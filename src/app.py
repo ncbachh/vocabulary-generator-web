@@ -2,6 +2,7 @@ import streamlit as st
 import io
 import sys
 import os
+import re
 
 # Ensure src is in path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__)))
@@ -9,6 +10,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 from docx_logic import create_vocabulary_docx
 
 st.set_page_config(page_title="Vocabulary Generator", page_icon="📝")
+
+def is_valid_filename(filename):
+    # Characters not allowed in Windows/Unix filenames
+    invalid_chars = r'[\\/:*?"<>|]'
+    if re.search(invalid_chars, filename):
+        return False
+    return True
 
 def main():
     st.title("📝 Vocabulary Generator")
@@ -31,8 +39,9 @@ def main():
     
     col1, col2 = st.columns([1, 4])
     with col1:
-        filename_base = st.text_input("Filename:", placeholder="vocabulary")
-        filename = filename_base + ".docx" if not filename_base.endswith(".docx") else filename_base
+        filename_base = st.text_input("Filename:", value="vocabulary", placeholder="e.g. my_words")
+        # Ensure we always have a displayable name for the internal logic
+        display_filename = filename_base + ".docx" if filename_base and not filename_base.endswith(".docx") else filename_base
 
     with col2:
         st.write("") # Spacer
@@ -40,12 +49,20 @@ def main():
         generate_btn = st.button("Generate Document", type="primary", disabled=not words)
 
     if generate_btn:
+        # 1. Empty Input Validation
+        if not filename_base.strip():
+            st.error("❌ Filename is required. Please enter a name for your file.")
+            return
+
+        # 2. Invalid Character Check
+        if not is_valid_filename(filename_base):
+            st.error('❌ Invalid filename. Please avoid using special characters: \\ / : * ? " < > |')
+            return
+
         st.session_state.docx_file = None
         st.session_state.failed_words = []
         
         # 4. Title Formatting: Derived from filename
-        # - Convert to uppercase
-        # - Remove .docx extension (filename_base handles this)
         doc_title = filename_base.upper()
         
         progress_bar = st.progress(0.0)
@@ -67,6 +84,8 @@ def main():
                 
                 st.session_state.docx_file = buffer
                 st.session_state.failed_words = failed_words
+                # Store the successful filename to ensure download matches the validation
+                st.session_state.final_filename = filename_base + ".docx" if not filename_base.lower().endswith(".docx") else filename_base
                 
             st.success("Generation complete!")
         except Exception as e:
@@ -81,9 +100,9 @@ def main():
             st.warning(f"Could not process the following words: {', '.join(st.session_state.failed_words)}")
         
         st.download_button(
-            label=f"Download {filename}",
+            label="Download .docx File",
             data=st.session_state.docx_file,
-            file_name=filename,
+            file_name=st.session_state.get("final_filename", "vocabulary.docx"),
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
