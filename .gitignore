@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+.venv/
+env/
+.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Streamlit secrets (VERY IMPORTANT)
+.streamlit/secrets.toml
+
+# IDE and OS-specific files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated Word files (if any are saved locally)
+*.docx
+
+# User configuration
+.streamlit/config.toml
