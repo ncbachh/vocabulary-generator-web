@@ -43,6 +43,11 @@ def main():
         st.session_state.docx_file = None
         st.session_state.failed_words = []
         
+        # 4. Title Formatting: Derived from filename
+        # - Convert to uppercase
+        # - Remove .docx extension (filename_base handles this)
+        doc_title = filename_base.upper()
+        
         progress_bar = st.progress(0.0)
         status_text = st.empty()
         
@@ -53,7 +58,7 @@ def main():
 
         try:
             with st.spinner("Fetching data and generating document..."):
-                doc, failed_words = create_vocabulary_docx(words, progress_callback=update_progress)
+                doc, failed_words = create_vocabulary_docx(words, title=doc_title, progress_callback=update_progress)
                 
                 # Save to memory buffer
                 buffer = io.BytesIO()
@@ -76,7 +81,7 @@ def main():
             st.warning(f"Could not process the following words: {', '.join(st.session_state.failed_words)}")
         
         st.download_button(
-            label="Download .docx File",
+            label=f"Download {filename}",
             data=st.session_state.docx_file,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
