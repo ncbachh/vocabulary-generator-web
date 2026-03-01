@@ -103,7 +103,7 @@ def fetch_word_data(word):
     
     # If exactly two words separated by space and no hyphen exists, use hyphenated version for URL
     parts = clean_word.split()
-    if len(parts) == 2 and '-' not in clean_word:
+    if (len(parts) == 2 or len(parts)) == 3 and '-' not in clean_word:
         url_word = "-".join(parts)
         
     url = f"https://www.oxfordlearnersdictionaries.com/definition/english/{url_word}"
