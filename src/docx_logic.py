@@ -1,7 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Cm, Pt
+from docx.enum.table import WD_TABLE_ALIGNMENT
 import time
 import copy
 import re
@@ -158,14 +159,15 @@ def fetch_word_data(word):
     except Exception:
         return None
 
-def create_vocabulary_docx(words: list[str], progress_callback=None) -> tuple[Document, list[str]]:
+def set_cell_width(cell, width_cm):
+    cell.width = Cm(width_cm)
+
+def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", progress_callback=None) -> tuple[Document, list[str]]:
     all_word_data = []
     failed_words = []
     
     for i, word in enumerate(words):
-        # Text Normalization
         norm_word = word.strip().lower()
-        
         if progress_callback:
             progress_callback(i, len(words), norm_word, status="Fetching...")
         
@@ -179,24 +181,43 @@ def create_vocabulary_docx(words: list[str], progress_callback=None) -> tuple[Do
             if progress_callback:
                 progress_callback(i, len(words), norm_word, status="Failed")
         
-        time.sleep(1) # Respectful delay
+        time.sleep(1)
         
     if not all_word_data:
         raise ValueError("No data could be fetched for any of the provided words.")
 
     doc = Document()
-    doc.add_heading('Vocabulary List', 0)
+    
+    # 1. Page Margins
+    section = doc.sections[0]
+    section.top_margin = Cm(2.54)
+    section.left_margin = Cm(2.54)
+    section.bottom_margin = Cm(1.27)
+    section.right_margin = Cm(1.27)
+
+    # 4. Title Formatting (derived from app.py)
+    heading = doc.add_heading(title, 0)
+    # 3. Font Size for Title
+    for run in heading.runs:
+        run.font.size = Pt(12)
 
     # Add a table with 4 columns
     table = doc.add_table(rows=1, cols=4)
     table.style = 'Table Grid'
-    
-    # Define header cells
+    table.allow_autofit = False # 2. Fixed Widths
+
+    # Define header cells and 2. Set Column Widths
+    widths = [0.85, 3.8, 6.88, 6.88]
     hdr_cells = table.rows[0].cells
-    hdr_cells[0].text = 'No'
-    hdr_cells[1].text = 'Words'
-    hdr_cells[2].text = 'Meaning'
-    hdr_cells[3].text = 'Examples'
+    headers = ['No', 'Words', 'Meaning', 'Examples']
+    
+    for idx, (cell, text) in enumerate(zip(hdr_cells, headers)):
+        cell.text = text
+        set_cell_width(cell, widths[idx])
+        # 3. Font Size for Header
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.font.size = Pt(12)
 
     # Fill data
     for i, (word, senses) in enumerate(all_word_data, 1):
@@ -207,6 +228,10 @@ def create_vocabulary_docx(words: list[str], progress_callback=None) -> tuple[Do
         
         for j, sense in enumerate(senses):
             row_cells = table.add_row().cells
+            # 2. Set Fixed Widths for each new row
+            for idx, cell in enumerate(row_cells):
+                set_cell_width(cell, widths[idx])
+
             if j == 0:
                 row_cells[0].text = str(i)
                 
@@ -216,25 +241,24 @@ def create_vocabulary_docx(words: list[str], progress_callback=None) -> tuple[Do
                 info = sense['word_info']
                 
                 word_text = f"{word} {info['pos']}"
-                p_word.add_run(word_text)
+                run_word = p_word.add_run(word_text)
                 
                 # IPA logic
                 ipa_bre = info['ipa_bre']
                 ipa_ame = info['ipa_ame']
-                
-                # Clean for comparison
                 clean_bre = ipa_bre.strip('/')
                 clean_ame = ipa_ame.strip('/')
                 
+                ipa_text = ""
                 if ipa_bre and ipa_ame:
-                    if clean_bre == clean_ame:
-                        p_word.add_run(f"\n{ipa_bre}")
-                    else:
-                        p_word.add_run(f"\n{ipa_bre}\n{ipa_ame}")
+                    ipa_text = f"\n{ipa_bre}" if clean_bre == clean_ame else f"\n{ipa_bre}\n{ipa_ame}"
                 elif ipa_bre:
-                    p_word.add_run(f"\n{ipa_bre}")
+                    ipa_text = f"\n{ipa_bre}"
                 elif ipa_ame:
-                    p_word.add_run(f"\n{ipa_ame}")
+                    ipa_text = f"\n{ipa_ame}"
+                
+                if ipa_text:
+                    p_word.add_run(ipa_text)
             
             # Formatting meaning cell
             meaning_cell = row_cells[2]
@@ -252,6 +276,12 @@ def create_vocabulary_docx(words: list[str], progress_callback=None) -> tuple[Do
             p.add_run(definition_text)
             
             row_cells[3].text = sense['examples']
+            
+            # 3. Apply 12pt font size to all paragraphs in the row
+            for cell in row_cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(12)
             
         end_row_idx = len(table.rows) - 1
         
