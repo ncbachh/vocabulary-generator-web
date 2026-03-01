@@ -8,10 +8,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from docx_logic import create_vocabulary_docx
 
-st.set_page_config(page_title="Vocabulary DOCX Generator", page_icon="📝")
+st.set_page_config(page_title="Vocabulary Generator", page_icon="📝")
 
 def main():
-    st.title("📝 Vocabulary DOCX Generator")
+    st.title("📝 Vocabulary Generator")
     st.markdown("""
     Convert your list of English words into a professionally formatted Word document with definitions, 
     pronunciations, and examples from the Oxford Learner's Dictionary.
