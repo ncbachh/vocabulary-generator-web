@@ -2,6 +2,9 @@
 
 A Streamlit-based web application that converts a list of English words into a professionally formatted Word document (.docx) with definitions, pronunciations (IPA), and example sentences from the Oxford Learner's Dictionary.
 
+## Documentation
+For detailed instructions on how to use this tool, please refer to the [User Manual](./USER_MANUAL.md).
+
 ## ✨ Features
 
 - **Batch Word Processing:** Input a list of English words (one per line) and process them all at once.

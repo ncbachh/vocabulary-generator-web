@@ -29,6 +29,7 @@ The app follows a simple 3-step workflow to generate your vocabulary list:
 ## 🔑 Getting Started with AI Translation
 
 To enable the **Vietnamese Translation** feature, the app uses **OpenRouter**, a gateway to modern AI models.
+The default model is a free model that provides good translations, but you can also choose from more advanced models (some may require a small amount of credit).
 
 ### 1. How to get an OpenRouter API Key
 1.  Go to [OpenRouter.ai](https://openrouter.ai/).
