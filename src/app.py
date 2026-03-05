@@ -50,26 +50,42 @@ def main():
         st.session_state.failed_words = []
     
     # Load saved words from local storage on startup
-    if "saved_words" not in st.session_state:
+    if "storage_loaded" not in st.session_state:
         try:
             saved_val = local_storage.getItem("vocabulary_words")
-            st.session_state.saved_words = saved_val if saved_val else ""
+            # We wait until we get a non-None value or decide it's empty
+            if saved_val is not None:
+                st.session_state.word_input = saved_val
+                st.session_state.storage_loaded = True
+                st.rerun()
+            else:
+                # If it's the very first run, getItem might return None 
+                # even if data exists. We'll initialize an empty state 
+                # but not mark as 'loaded' yet to allow the component to respond.
+                if "word_input" not in st.session_state:
+                    st.session_state.word_input = ""
         except:
-            st.session_state.saved_words = ""
+            st.session_state.word_input = ""
+            st.session_state.storage_loaded = True
 
     # Input Section
     st.subheader("1. Enter Words")
+    
+    # Use key for the widget to manage its own state in session_state
     word_input = st.text_area(
         "Enter words (one per line):", 
         height=200, 
         placeholder="apple\nbanana\ncherry",
-        value=st.session_state.saved_words
+        key="word_input"
     )
     
-    # Update local storage if input changes
-    if word_input != st.session_state.saved_words:
-        local_storage.setItem("vocabulary_words", word_input)
-        st.session_state.saved_words = word_input
+    # Update local storage if input changes (using a separate tracker to avoid redundant writes)
+    if "last_persisted_words" not in st.session_state:
+        st.session_state.last_persisted_words = st.session_state.word_input
+
+    if st.session_state.word_input != st.session_state.last_persisted_words:
+        local_storage.setItem("vocabulary_words", st.session_state.word_input)
+        st.session_state.last_persisted_words = st.session_state.word_input
 
     words = [w.strip() for w in word_input.split('\n') if w.strip()]
     
