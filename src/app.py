@@ -8,6 +8,7 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from docx_logic import create_vocabulary_docx
+from streamlit_local_storage import LocalStorage
 
 st.set_page_config(page_title="Vocabulary Generator", page_icon="📝")
 
@@ -24,6 +25,9 @@ def main():
     Convert your list of English words into a professionally formatted Word document with definitions, 
     pronunciations, and examples from the Oxford Learner's Dictionary.
     """)
+
+    # Initialize LocalStorage
+    local_storage = LocalStorage()
 
     # Sidebar for Settings
     st.sidebar.title("Settings")
@@ -44,11 +48,29 @@ def main():
         st.session_state.docx_file = None
     if "failed_words" not in st.session_state:
         st.session_state.failed_words = []
+    
+    # Load saved words from local storage on startup
+    if "saved_words" not in st.session_state:
+        try:
+            saved_val = local_storage.getItem("vocabulary_words")
+            st.session_state.saved_words = saved_val if saved_val else ""
+        except:
+            st.session_state.saved_words = ""
 
     # Input Section
     st.subheader("1. Enter Words")
-    word_input = st.text_area("Enter words (one per line):", height=200, placeholder="apple\nbanana\ncherry")
+    word_input = st.text_area(
+        "Enter words (one per line):", 
+        height=200, 
+        placeholder="apple\nbanana\ncherry",
+        value=st.session_state.saved_words
+    )
     
+    # Update local storage if input changes
+    if word_input != st.session_state.saved_words:
+        local_storage.setItem("vocabulary_words", word_input)
+        st.session_state.saved_words = word_input
+
     words = [w.strip() for w in word_input.split('\n') if w.strip()]
     
     col1, col2 = st.columns([1, 4])
