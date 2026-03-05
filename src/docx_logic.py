@@ -125,6 +125,10 @@ def fetch_word_data(word):
         # Get word info (POS, IPA)
         word_info = get_pos_ipa(soup)
         
+        # Remove Idioms section to avoid extracting idiom meanings
+        for idioms_section in main_container.find_all(['div', 'span'], class_='idioms'):
+            idioms_section.decompose()
+            
         senses_data = []
         
         # Find all sense items
