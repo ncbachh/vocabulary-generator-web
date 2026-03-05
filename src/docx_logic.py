@@ -263,8 +263,6 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
 
     # Title Formatting
     heading = doc.add_heading(title, 0)
-    for run in heading.runs:
-        run.font.size = Pt(12)
 
     # Add a table with 4 columns
     table = doc.add_table(rows=1, cols=4)
