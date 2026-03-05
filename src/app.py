@@ -48,24 +48,26 @@ def main():
         st.session_state.docx_file = None
     if "failed_words" not in st.session_state:
         st.session_state.failed_words = []
+    if "word_input" not in st.session_state:
+        st.session_state.word_input = ""
+    if "storage_loaded" not in st.session_state:
+        st.session_state.storage_loaded = False
     
     # Load saved words from local storage on startup
-    if "storage_loaded" not in st.session_state:
+    if not st.session_state.storage_loaded:
         try:
             saved_val = local_storage.getItem("vocabulary_words")
-            # We wait until we get a non-None value or decide it's empty
+            # If saved_val is not None, the component has responded (even if it's an empty string)
             if saved_val is not None:
-                st.session_state.word_input = saved_val
+                if saved_val: # Only update if there is actual data to restore
+                    st.session_state.word_input = saved_val
                 st.session_state.storage_loaded = True
                 st.rerun()
-            else:
-                # If it's the very first run, getItem might return None 
-                # even if data exists. We'll initialize an empty state 
-                # but not mark as 'loaded' yet to allow the component to respond.
-                if "word_input" not in st.session_state:
-                    st.session_state.word_input = ""
+            elif st.session_state.word_input != "":
+                # If the user started typing before storage responded, stop trying to load
+                # to prevent overwriting their new work with old (or empty) data.
+                st.session_state.storage_loaded = True
         except:
-            st.session_state.word_input = ""
             st.session_state.storage_loaded = True
 
     # Input Section
@@ -79,9 +81,9 @@ def main():
         key="word_input"
     )
     
-    # Update local storage if input changes (using a separate tracker to avoid redundant writes)
+    # Update local storage if input changes
     if "last_persisted_words" not in st.session_state:
-        st.session_state.last_persisted_words = st.session_state.word_input
+        st.session_state.last_persisted_words = None
 
     if st.session_state.word_input != st.session_state.last_persisted_words:
         local_storage.setItem("vocabulary_words", st.session_state.word_input)
