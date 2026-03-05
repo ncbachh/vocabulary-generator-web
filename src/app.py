@@ -8,6 +8,7 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from docx_logic import create_vocabulary_docx
+from streamlit_local_storage import LocalStorage
 
 st.set_page_config(page_title="Vocabulary Generator", page_icon="📝")
 
@@ -24,6 +25,9 @@ def main():
     Convert your list of English words into a professionally formatted Word document with definitions, 
     pronunciations, and examples from the Oxford Learner's Dictionary.
     """)
+
+    # Initialize LocalStorage
+    local_storage = LocalStorage()
 
     # Sidebar for Settings
     st.sidebar.title("Settings")
@@ -44,11 +48,47 @@ def main():
         st.session_state.docx_file = None
     if "failed_words" not in st.session_state:
         st.session_state.failed_words = []
+    if "word_input" not in st.session_state:
+        st.session_state.word_input = ""
+    if "storage_loaded" not in st.session_state:
+        st.session_state.storage_loaded = False
+    
+    # Load saved words from local storage on startup
+    if not st.session_state.storage_loaded:
+        try:
+            saved_val = local_storage.getItem("vocabulary_words")
+            # If saved_val is not None, the component has responded (even if it's an empty string)
+            if saved_val is not None:
+                if saved_val: # Only update if there is actual data to restore
+                    st.session_state.word_input = saved_val
+                st.session_state.storage_loaded = True
+                st.rerun()
+            elif st.session_state.word_input != "":
+                # If the user started typing before storage responded, stop trying to load
+                # to prevent overwriting their new work with old (or empty) data.
+                st.session_state.storage_loaded = True
+        except:
+            st.session_state.storage_loaded = True
 
     # Input Section
     st.subheader("1. Enter Words")
-    word_input = st.text_area("Enter words (one per line):", height=200, placeholder="apple\nbanana\ncherry")
     
+    # Use key for the widget to manage its own state in session_state
+    word_input = st.text_area(
+        "Enter words (one per line):", 
+        height=200, 
+        placeholder="apple\nbanana\ncherry",
+        key="word_input"
+    )
+    
+    # Update local storage if input changes
+    if "last_persisted_words" not in st.session_state:
+        st.session_state.last_persisted_words = None
+
+    if st.session_state.word_input != st.session_state.last_persisted_words:
+        local_storage.setItem("vocabulary_words", st.session_state.word_input)
+        st.session_state.last_persisted_words = st.session_state.word_input
+
     words = [w.strip() for w in word_input.split('\n') if w.strip()]
     
     col1, col2 = st.columns([1, 4])
