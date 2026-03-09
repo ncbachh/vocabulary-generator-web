@@ -213,40 +213,24 @@ def translate_meaning_to_vi(word, pos, definition, api_key):
 def set_cell_width(cell, width_cm):
     cell.width = Cm(width_cm)
 
-def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use_vi_translation: bool = False, api_key: str = None, progress_callback=None) -> tuple[Document, list[str]]:
-    all_word_data = []
-    failed_words = []
+def fetch_full_word_data(word: str, use_vi_translation: bool = False, api_key: str = None):
+    """Fetches dictionary data and optional translation for a single word."""
+    norm_word = word.strip().lower()
+    senses = fetch_word_data(norm_word)
     
-    for i, word in enumerate(words):
-        norm_word = word.strip().lower()
-        if progress_callback:
-            progress_callback(i, len(words), norm_word, status="Fetching...")
-        
-        senses = fetch_word_data(norm_word)
-        if senses:
-            # Handle translation if requested
-            if use_vi_translation and api_key:
-                if progress_callback:
-                    progress_callback(i, len(words), norm_word, status="Translating...")
-                
-                for sense in senses:
-                    pos = sense['word_info']['pos']
-                    definition = sense['meaning_data']['def']
-                    translation = translate_meaning_to_vi(norm_word, pos, definition, api_key)
-                    sense['vi_translation'] = translation
+    if senses and use_vi_translation and api_key:
+        for sense in senses:
+            pos = sense['word_info']['pos']
+            definition = sense['meaning_data']['def']
+            translation = translate_meaning_to_vi(norm_word, pos, definition, api_key)
+            sense['vi_translation'] = translation
             
-            all_word_data.append((norm_word, senses))
-            if progress_callback:
-                progress_callback(i, len(words), norm_word, status="Success")
-        else:
-            failed_words.append(word)
-            if progress_callback:
-                progress_callback(i, len(words), norm_word, status="Failed")
-        
-        time.sleep(1) # Respectful delay
-        
+    return senses
+
+def generate_vocabulary_docx(all_word_data: list, title: str = "VOCABULARY LIST") -> Document:
+    """Generates a .docx file from a list of (word, senses) tuples."""
     if not all_word_data:
-        raise ValueError("No data could be fetched for any of the provided words.")
+        raise ValueError("No data provided for document generation.")
 
     doc = Document()
     
@@ -342,7 +326,7 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
             
             row_cells[3].text = sense['examples']
             
-            # Apply 12pt font size to all paragraphs (except translation which we set to 11pt)
+            # Apply 12pt font size to all paragraphs
             for cell in row_cells:
                 for paragraph in cell.paragraphs:
                     for run in paragraph.runs:
@@ -353,4 +337,4 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
             table.cell(start_row_idx, 0).merge(table.cell(end_row_idx, 0))
             table.cell(start_row_idx, 1).merge(table.cell(end_row_idx, 1))
 
-    return doc, failed_words
+    return doc
