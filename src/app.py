@@ -228,7 +228,7 @@ def main():
                 else:
                     st.error("Invalid filename.")
             else:
-                st.button("Generate DOCX", disabled=True, help="Fetch data successfully first.")
+                st.button("📥 Download", disabled=True, help="Fetch data successfully first.")
 
 if __name__ == "__main__":
     main()
