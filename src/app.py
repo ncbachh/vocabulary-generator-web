@@ -24,8 +24,17 @@ def is_valid_filename(filename):
 def main():
     st.title("📝 Vocabulary Generator")
     st.markdown("""
-    1. Enter your words. 2. Fetch dictionary data. 3. Fix any errors directly in the table. 4. Export to Word.
+    Create a professionally formatted Word document from your English word list. 
+    Dictionary data is fetched from the *Oxford Learner's Dictionary*.
     """)
+
+    with st.expander("📖 How to use", expanded=False):
+        st.markdown("""
+        1. **Step 1:** Paste your words into the text area (one per line) and click **Initialize**.
+        2. **Step 2:** Click **Fetch / Update Data**. This fetches definitions, pronunciations, and examples.
+        3. **Review:** If a word fails (❌), you can click its name in the table to fix typos.
+        4. **Step 3:** Once your list is ready (✅), enter a filename and click **Download**.
+        """)
 
     # Initialize LocalStorage
     local_storage = LocalStorage()
@@ -70,7 +79,7 @@ def main():
             st.session_state.storage_loaded = True
 
     # 1. Input Section
-    st.subheader("1. Load Words")
+    st.subheader("Step 1: Input Word List")
     word_input = st.text_area(
         "Enter words (one per line):", 
         height=150, 
@@ -86,7 +95,7 @@ def main():
         local_storage.setItem("vocabulary_words", st.session_state.word_input)
         st.session_state.last_persisted_words = st.session_state.word_input
 
-    if st.button("Initialize / Reset List", disabled=st.session_state.is_fetching):
+    if st.button("Initialize", disabled=st.session_state.is_fetching, help="Start the process with the words above."):
         new_words = [w.strip() for w in word_input.split('\n') if w.strip()]
         if new_words:
             # Create a new registry, keeping existing data if word is the same
@@ -94,14 +103,15 @@ def main():
                 {"Word": w, "Status": "⏳ Pending"} for w in new_words
             ])
             st.session_state.word_registry = new_df
-            st.success(f"Loaded {len(new_words)} words.")
+            st.success(f"Loaded {len(new_words)} words. Proceed to Step 2 below.")
         else:
             st.warning("Please enter some words first.")
 
     # 2. Interactive Registry Section
     if not st.session_state.word_registry.empty:
         st.divider()
-        st.subheader("2. Review and Fetch Data")
+        st.subheader("Step 2: Get Dictionary Data")
+        # st.info("Fetch data for the list. You can edit words in the 'Word' column to fix typos.")
         
         # Display Data Editor
         edited_registry = st.data_editor(
@@ -109,8 +119,8 @@ def main():
             use_container_width=True,
             num_rows="dynamic",
             column_config={
-                "Status": st.column_config.TextColumn(help="✅ Success, ❌ Failed, ⏳ Pending", disabled=True),
-                "Word": st.column_config.TextColumn(help="Edit word to retry")
+                "Status": st.column_config.TextColumn(help="✅ Success, ❌ Failed, ⏳ Pending (Ready to fetch)", disabled=True),
+                "Word": st.column_config.TextColumn(help="Double-click to edit and retry a failed word")
             },
             key="registry_editor",
             disabled=st.session_state.is_fetching
@@ -127,11 +137,11 @@ def main():
         
         with col_f1:
             if st.session_state.is_fetching:
-                if st.button("Stop", type="secondary"):
+                if st.button("Stop Fetching", type="secondary", help="Stop the current operation immediately."):
                     st.session_state.is_fetching = False
                     st.rerun()
             else:
-                if st.button("Fetch / Update Data", type="primary"):
+                if st.button("Start Fetching", type="primary", help="Download data for all words marked 'Pending' or 'Failed'."):
                     st.session_state.is_fetching = True
                     st.rerun()
 
@@ -181,7 +191,7 @@ def main():
 
         # 3. Export Section
         st.divider()
-        st.subheader("3. Export")
+        st.subheader("Step 3: Download Word Document")
         
         col_e1, col_e2 = st.columns([1, 4])
         with col_e1:
@@ -207,7 +217,7 @@ def main():
                         buffer.seek(0)
                         
                         st.download_button(
-                            label="📥 Generate & Download DOCX",
+                            label="📥 Download",
                             data=buffer,
                             file_name=f"{filename_base}.docx",
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
