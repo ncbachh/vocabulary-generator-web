@@ -127,6 +127,8 @@ def main():
         st.session_state.word_input = ""
     if "storage_loaded" not in st.session_state:
         st.session_state.storage_loaded = False
+    if "step" not in st.session_state:
+        st.session_state.step = 1
     
     # Load saved words from local storage
     if not st.session_state.storage_loaded:
@@ -140,164 +142,183 @@ def main():
         except:
             st.session_state.storage_loaded = True
 
-    # 1. Input Section
-    st.subheader("1. Enter Words")
-    word_input = st.text_area(
-        "Enter words (one per line):", 
-        height=150, 
-        placeholder="apple\nbanana",
-        key="word_input"
-    )
-    
-    # Persist input
-    if "last_persisted_words" not in st.session_state:
-        st.session_state.last_persisted_words = None
-    if st.session_state.word_input != st.session_state.last_persisted_words:
-        local_storage.setItem("vocabulary_words", st.session_state.word_input)
-        st.session_state.last_persisted_words = st.session_state.word_input
-
-    if st.button("Initial Fetch", type="primary"):
-        words = [w.strip() for w in word_input.split('\n') if w.strip()]
-        if not words:
-            st.error("Please enter some words first.")
-        else:
-            new_data = []
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            for i, word in enumerate(words):
-                status_text.text(f"Fetching: {word}...")
-                senses = fetch_word_data(word)
-                
-                if senses and use_vi and api_key:
-                    for sense in senses:
-                        pos = sense['word_info']['pos']
-                        definition = sense['meaning_data']['def']
-                        translation = translate_meaning_to_vi(word, pos, definition, api_key)
-                        sense['vi_translation'] = translation
-                
-                new_data.extend(flatten_senses(word, senses))
-                progress_bar.progress((i + 1) / len(words))
-                time.sleep(0.5)
-            
-            st.session_state.vocab_data = new_data
-            status_text.success("Initial fetch complete!")
-
-    # 2. Editor Section
+    # Define tabs based on progress
+    tab_titles = ["📥 1. Enter Words"]
     if st.session_state.vocab_data:
-        st.divider()
-        st.subheader("2. Review & Edit")
+        tab_titles.append("🔍 2. Review & Edit")
+    if st.session_state.step >= 3 and st.session_state.vocab_data:
+        tab_titles.append("🚀 3. Export")
+    
+    tabs = st.tabs(tab_titles)
+
+    # 1. Input Section
+    with tabs[0]:
+        st.subheader("Step 1: Enter Your Word List")
+        word_input = st.text_area(
+            "Enter words (one per line):", 
+            height=200, 
+            placeholder="apple\nbanana\ncherry",
+            key="word_input_area",
+            value=st.session_state.word_input
+        )
         
-        # Detection logic for status
-        for row in st.session_state.vocab_data:
-            if row['word'].lower() != row['last_fetched_word'].lower():
-                row['status'] = "⚠️ Unfetched"
-            elif "Not Found" in row['status'] and row['meaning']:
-                row['status'] = "📝 Manual"
+        # Update session state word_input from the text area
+        if word_input != st.session_state.word_input:
+            st.session_state.word_input = word_input
         
-        # Action Buttons for the Editor
-        col_btn1, col_btn2, _ = st.columns([2, 2, 6])
-        
-        with col_btn1:
-            if st.button("🔍 Fetch Missing Data"):
+        # Persist input
+        if "last_persisted_words" not in st.session_state:
+            st.session_state.last_persisted_words = None
+        if st.session_state.word_input != st.session_state.last_persisted_words:
+            local_storage.setItem("vocabulary_words", st.session_state.word_input)
+            st.session_state.last_persisted_words = st.session_state.word_input
+
+        if st.button("Fetch Word Data", type="primary", use_container_width=True):
+            words = [w.strip() for w in word_input.split('\n') if w.strip()]
+            if not words:
+                st.error("Please enter some words first.")
+            else:
+                new_data = []
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
-                rows_to_fetch = [r for r in st.session_state.vocab_data if "Unfetched" in r['status'] or "Not Found" in r['status']]
-                
-                for i, row in enumerate(rows_to_fetch):
-                    word = row['word'].strip()
+                for i, word in enumerate(words):
                     status_text.text(f"Fetching: {word}...")
-                    
                     senses = fetch_word_data(word)
-                    if senses:
-                        # For simplicity in partial fetch, we'll just update the first sense found
-                        # or ideally we'd replace the row with multiple rows if senses > 1
-                        # But for now, let's update the current row with the first sense
-                        sense = senses[0]
-                        info = sense.get('word_info', {})
-                        m_data = sense.get('meaning_data', {})
-                        
-                        if use_vi and api_key:
-                            translation = translate_meaning_to_vi(word, info.get('pos', ''), m_data.get('def', ''), api_key)
-                        else:
-                            translation = ""
-
-                        row.update({
-                            "pos": info.get('pos', ''),
-                            "ipa": f"{info.get('ipa_bre', '')} {info.get('ipa_ame', '')}".strip(),
-                            "cf": m_data.get('cf', ''),
-                            "meaning": m_data.get('def', ''),
-                            "examples": sense.get('examples', ''),
-                            "translation": translation,
-                            "status": "✅ Synced",
-                            "last_fetched_word": word
-                        })
-                    else:
-                        row['status'] = "❌ Not Found"
                     
-                    progress_bar.progress((i + 1) / len(rows_to_fetch))
+                    if senses and use_vi and api_key:
+                        for sense in senses:
+                            pos = sense['word_info']['pos']
+                            definition = sense['meaning_data']['def']
+                            translation = translate_meaning_to_vi(word, pos, definition, api_key)
+                            sense['vi_translation'] = translation
+                    
+                    new_data.extend(flatten_senses(word, senses))
+                    progress_bar.progress((i + 1) / len(words))
                     time.sleep(0.5)
                 
-                status_text.success("Fetch complete!")
+                st.session_state.vocab_data = new_data
+                st.session_state.step = 2
+                status_text.success("Initial fetch complete! Proceed to the 'Review & Edit' tab.")
                 st.rerun()
 
-        # Display Data Editor
-        edited_df = st.data_editor(
-            st.session_state.vocab_data,
-            column_config={
-                "id": None, # Hide ID
-                "last_fetched_word": None, # Hide tracking
-                "status": st.column_config.TextColumn("Status", disabled=True),
-                "word": st.column_config.TextColumn("Word", width="medium"),
-                "pos": st.column_config.TextColumn("POS", width="small"),
-                # "ipa": st.column_config.TextColumn("IPA", width="small"),
-                "ipa": None,
-                # "cf": st.column_config.TextColumn("Context (cf)", width="small"),
-                "cf": None,
-                # "meaning": st.column_config.TextColumn("Meaning", width="large"),
-                "meaning": None,
-                # "translation": st.column_config.TextColumn("Translation (Vi)", width="medium"),
-                "translation": None,
-                # "examples": st.column_config.TextColumn("Examples", width="large"),
-                "examples": None,
-            },
-            num_rows="dynamic",
-            key="vocab_editor",
-            use_container_width=True
-        )
-        
-        # Sync changes back to session state
-        st.session_state.vocab_data = edited_df
+    # 2. Editor Section
+    if len(tab_titles) > 1:
+        with tabs[1]:
+            st.subheader("Step 2: Review and Customize")
+            st.info("Review the fetched data below. You can edit any cell directly. Use 'Fetch Missing Data' to try again for failed words.")
+            
+            # Detection logic for status
+            for row in st.session_state.vocab_data:
+                if row['word'].lower() != row['last_fetched_word'].lower():
+                    row['status'] = "⚠️ Unfetched"
+                elif "Not Found" in row['status'] and row['meaning']:
+                    row['status'] = "📝 Manual"
+            
+            # Action Buttons for the Editor
+            col_btn1, col_btn2 = st.columns([1, 1])
+            
+            with col_btn1:
+                if st.button("🔍 Fetch Missing Data", use_container_width=True):
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    rows_to_fetch = [r for r in st.session_state.vocab_data if "Unfetched" in r['status'] or "Not Found" in r['status']]
+                    
+                    if not rows_to_fetch:
+                        st.info("No missing data to fetch.")
+                    else:
+                        for i, row in enumerate(rows_to_fetch):
+                            word = row['word'].strip()
+                            status_text.text(f"Fetching: {word}...")
+                            
+                            senses = fetch_word_data(word)
+                            if senses:
+                                sense = senses[0]
+                                info = sense.get('word_info', {})
+                                m_data = sense.get('meaning_data', {})
+                                
+                                if use_vi and api_key:
+                                    translation = translate_meaning_to_vi(word, info.get('pos', ''), m_data.get('def', ''), api_key)
+                                else:
+                                    translation = ""
 
-        # 3. Export Section
-        st.divider()
-        st.subheader("3. Export")
-        
-        col_ex1, col_ex2 = st.columns([1, 4])
-        with col_ex1:
-            filename_base = st.text_input("Filename:", value="vocabulary")
-        
-        with col_ex2:
-            st.write("") # Spacer
-            st.write("") # Spacer
-            if st.button("Generate .docx", type="primary"):
-                if not is_valid_filename(filename_base):
-                    st.error("Invalid filename.")
-                else:
-                    reconstructed = reconstruct_data_for_docx(st.session_state.vocab_data)
-                    doc = generate_docx_from_data(reconstructed, title=filename_base.upper())
-                    
-                    buffer = io.BytesIO()
-                    doc.save(buffer)
-                    buffer.seek(0)
-                    
-                    st.download_button(
-                        label="Download .docx File",
-                        data=buffer,
-                        file_name=f"{filename_base}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
+                                row.update({
+                                    "pos": info.get('pos', ''),
+                                    "ipa": f"{info.get('ipa_bre', '')} {info.get('ipa_ame', '')}".strip(),
+                                    "cf": m_data.get('cf', ''),
+                                    "meaning": m_data.get('def', ''),
+                                    "examples": sense.get('examples', ''),
+                                    "translation": translation,
+                                    "status": "✅ Synced",
+                                    "last_fetched_word": word
+                                })
+                            else:
+                                row['status'] = "❌ Not Found"
+                            
+                            progress_bar.progress((i + 1) / len(rows_to_fetch))
+                            time.sleep(0.5)
+                        
+                        status_text.success("Fetch complete!")
+                        st.rerun()
+
+            # Display Data Editor
+            edited_df = st.data_editor(
+                st.session_state.vocab_data,
+                column_config={
+                    "id": None, # Hide ID
+                    "last_fetched_word": None, # Hide tracking
+                    "status": st.column_config.TextColumn("Status", disabled=True),
+                    "word": st.column_config.TextColumn("Word", width="medium"),
+                    "pos": st.column_config.TextColumn("POS", width="small"),
+                    "ipa": st.column_config.TextColumn("IPA", width="small"),
+                    "cf": st.column_config.TextColumn("Context (cf)", width="small"),
+                    "meaning": st.column_config.TextColumn("Meaning", width="large"),
+                    "translation": st.column_config.TextColumn("Translation (Vi)", width="medium"),
+                    "examples": st.column_config.TextColumn("Examples", width="large"),
+                },
+                num_rows="dynamic",
+                key="vocab_editor",
+                use_container_width=True
+            )
+            
+            # Sync changes back to session state
+            st.session_state.vocab_data = edited_df
+            
+            st.markdown("---")
+            if st.button("Confirm & Go to Export ➔", type="primary", use_container_width=True):
+                st.session_state.step = 3
+                st.rerun()
+
+    # 3. Export Section
+    if len(tab_titles) > 2:
+        with tabs[2]:
+            st.subheader("Step 3: Download Your List")
+            
+            filename_base = st.text_input("Enter filename (without extension):", value="vocabulary_list")
+            
+            if not is_valid_filename(filename_base):
+                st.error("Invalid filename. Please avoid special characters.")
+            else:
+                # Generate document bytes automatically
+                # This is fast since it only involves local data processing
+                reconstructed = reconstruct_data_for_docx(st.session_state.vocab_data)
+                doc = generate_docx_from_data(reconstructed, title=filename_base.upper())
+                
+                buffer = io.BytesIO()
+                doc.save(buffer)
+                buffer.seek(0)
+                
+                st.write("") # Spacer
+                st.download_button(
+                    label="📥 Download .docx File",
+                    data=buffer,
+                    file_name=f"{filename_base}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                    type="primary"
+                )
+
 
 if __name__ == "__main__":
     main()
