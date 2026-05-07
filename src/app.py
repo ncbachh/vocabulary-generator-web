@@ -62,11 +62,13 @@ def flatten_senses(word, senses):
 def reconstruct_data_for_docx(df_rows):
     """Groups flat rows back into (word, senses) structure for docx generation."""
     reconstructed = []
-    current_word = None
+    current_key = None # (word, pos)
     current_senses = []
     
     for row in df_rows:
         word = row['word'].strip().lower()
+        pos = row.get('pos', '').strip()
+        key = (word, pos)
         
         # Sense data structure matching docx_logic expectations
         # Handle IPA split
@@ -76,7 +78,7 @@ def reconstruct_data_for_docx(df_rows):
         
         sense = {
             "word_info": {
-                "pos": row.get('pos', ''),
+                "pos": pos,
                 "ipa_bre": ipa_bre,
                 "ipa_ame": ipa_ame
             },
@@ -89,16 +91,16 @@ def reconstruct_data_for_docx(df_rows):
             "vi_translation": row.get('translation', '')
         }
         
-        if word == current_word:
+        if key == current_key:
             current_senses.append(sense)
         else:
-            if current_word is not None:
-                reconstructed.append((current_word, current_senses))
-            current_word = word
+            if current_key is not None:
+                reconstructed.append((current_key[0], current_senses))
+            current_key = key
             current_senses = [sense]
             
-    if current_word is not None:
-        reconstructed.append((current_word, current_senses))
+    if current_key is not None:
+        reconstructed.append((current_key[0], current_senses))
         
     return reconstructed
 

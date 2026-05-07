@@ -8,7 +8,11 @@ import copy
 import re
 
 def get_pos_ipa(soup):
-    pos_tag = soup.find('span', class_='pos')
+    # Try multiple common POS tag structures
+    pos_tag = soup.find(['span', 'pos', 'pos-g'], class_='pos') or \
+              soup.find(['span', 'pos', 'pos-g'], hclass='pos') or \
+              soup.find('pos')
+              
     pos = ""
     if pos_tag:
         pos_text = pos_tag.get_text().strip().lower()
@@ -97,6 +101,47 @@ def extract_meaning(container):
         "def": definition
     }
 
+def _parse_senses_from_soup(soup, word_info):
+    """Internal helper to extract senses from a BeautifulSoup object."""
+    main_container = soup.find('div', id='main-container')
+    if not main_container:
+        main_container = soup
+        
+    # Remove Idioms section to avoid extracting idiom meanings
+    for idioms_section in main_container.find_all(['div', 'span'], class_='idioms'):
+        idioms_section.decompose()
+        
+    senses_data = []
+    
+    # Find all sense items
+    senses = main_container.find_all('li', class_='sense')
+    
+    if not senses:
+        meaning_data = extract_meaning(main_container)
+        if meaning_data:
+            example_tags = main_container.find_all('span', class_='x', limit=2)
+            examples = [ex.get_text().strip() for ex in example_tags]
+            senses_data.append({
+                "word_info": word_info,
+                "meaning_data": meaning_data,
+                "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else ""
+            })
+    else:
+        for i, sense in enumerate(senses[:3]):
+            meaning_data = extract_meaning(sense)
+            if not meaning_data:
+                continue
+            
+            example_tags = sense.find_all('span', class_='x', limit=2)
+            examples = [ex.get_text().strip() for ex in example_tags]
+            
+            senses_data.append({
+                "word_info": word_info,
+                "meaning_data": meaning_data,
+                "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else ""
+            })
+    return senses_data
+
 def fetch_word_data(word):
     # Normalize word for URL construction
     clean_word = word.strip().lower()
@@ -107,59 +152,76 @@ def fetch_word_data(word):
     if (len(parts) == 2 or len(parts) == 3) and '-' not in clean_word:
         url_word = "-".join(parts)
         
-    url = f"https://www.oxfordlearnersdictionaries.com/definition/english/{url_word}"
+    base_url = f"https://www.oxfordlearnersdictionaries.com/definition/english/{url_word}"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(base_url, headers=headers)
         if response.status_code != 200:
             return None
             
         soup = BeautifulSoup(response.content, 'html.parser')
-        main_container = soup.find('div', id='main-container')
-        if not main_container:
-            main_container = soup
-            
-        # Get word info (POS, IPA)
+        
+        # 1. Fetch current page data
         word_info = get_pos_ipa(soup)
+        all_senses = _parse_senses_from_soup(soup, word_info)
         
-        # Remove Idioms section to avoid extracting idiom meanings
-        for idioms_section in main_container.find_all(['div', 'span'], class_='idioms'):
-            idioms_section.decompose()
+        # 2. Look for other POS entries (Option A: Automatic)
+        def normalize_url(url):
+            return url.split('?')[0].split('#')[0].rstrip('/')
+
+        seen_urls = {normalize_url(response.url), normalize_url(base_url)}
+        related_entries_div = soup.find('div', id='relatedentries')
+        
+        if related_entries_div:
+            # Look for "All matches" header (dt or div)
+            all_matches_header = related_entries_div.find(['dt', 'div'], string=re.compile(r'All matches', re.I))
+            if not all_matches_header:
+                all_matches_header = related_entries_div.find(lambda tag: tag.name in ['dt', 'div'] and 'All matches' in tag.get_text())
             
-        senses_data = []
-        
-        # Find all sense items
-        senses = main_container.find_all('li', class_='sense')
-        
-        if not senses:
-            meaning_data = extract_meaning(main_container)
-            if meaning_data:
-                example_tags = main_container.find_all('span', class_='x', limit=2)
-                examples = [ex.get_text().strip() for ex in example_tags]
-                senses_data.append({
-                    "word_info": word_info,
-                    "meaning_data": meaning_data,
-                    "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else ""
-                })
-        else:
-            for i, sense in enumerate(senses[:3]):
-                meaning_data = extract_meaning(sense)
-                if not meaning_data:
-                    continue
-                
-                example_tags = sense.find_all('span', class_='x', limit=2)
-                examples = [ex.get_text().strip() for ex in example_tags]
-                
-                senses_data.append({
-                    "word_info": word_info,
-                    "meaning_data": meaning_data,
-                    "examples": "\n".join([f"• {ex}" for ex in examples]) if examples else ""
-                })
-                
-        return senses_data
+            if all_matches_header:
+                list_ul = all_matches_header.find_next(['ul', 'ol'])
+                if list_ul:
+                    other_links = []
+                    for li in list_ul.find_all('li'):
+                        a = li.find('a')
+                        if not a: continue
+                        
+                        # Flexible POS tag search
+                        pos_tag = a.find(['span', 'pos', 'pos-g'], class_='pos') or \
+                                  a.find(['span', 'pos', 'pos-g'], hclass='pos') or \
+                                  a.find('pos')
+                                  
+                        if pos_tag:
+                            link_text = a.get_text(separator=' ', strip=True).lower()
+                            pos_text = pos_tag.get_text().strip().lower()
+                            expected_text = f"{clean_word} {pos_text}"
+                            
+                            if link_text == expected_text:
+                                href = a.get('href')
+                                if href:
+                                    if not href.startswith('http'):
+                                        href = "https://www.oxfordlearnersdictionaries.com" + href
+                                    
+                                    norm_href = normalize_url(href)
+                                    if norm_href not in seen_urls:
+                                        other_links.append(href)
+                                        seen_urls.add(norm_href)
+                    
+                    for link in other_links:
+                        time.sleep(0.5)
+                        try:
+                            res = requests.get(link, headers=headers)
+                            if res.status_code == 200:
+                                s_soup = BeautifulSoup(res.content, 'html.parser')
+                                s_info = get_pos_ipa(s_soup)
+                                all_senses.extend(_parse_senses_from_soup(s_soup, s_info))
+                        except Exception:
+                            continue
+                            
+        return all_senses
     except Exception:
         return None
 
