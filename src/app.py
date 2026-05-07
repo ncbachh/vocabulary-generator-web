@@ -10,7 +10,6 @@ import uuid
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from docx_logic import fetch_word_data, translate_meaning_to_vi, generate_docx_from_data
-from streamlit_local_storage import LocalStorage
 
 st.set_page_config(page_title="Vocabulary Generator", page_icon="📝", layout="wide")
 
@@ -106,9 +105,6 @@ def reconstruct_data_for_docx(df_rows):
 def main():
     st.title("📝 Vocabulary Generator")
     
-    # Initialize LocalStorage
-    local_storage = LocalStorage()
-
     # Sidebar for Settings
     st.sidebar.title("Settings")
     use_vi = st.sidebar.checkbox("Enable Vietnamese Translation", value=False)
@@ -125,22 +121,8 @@ def main():
         st.session_state.vocab_data = []
     if "word_input" not in st.session_state:
         st.session_state.word_input = ""
-    if "storage_loaded" not in st.session_state:
-        st.session_state.storage_loaded = False
     if "step" not in st.session_state:
         st.session_state.step = 1
-    
-    # Load saved words from local storage
-    if not st.session_state.storage_loaded:
-        try:
-            saved_val = local_storage.getItem("vocabulary_words")
-            if saved_val is not None:
-                if saved_val:
-                    st.session_state.word_input = saved_val
-                st.session_state.storage_loaded = True
-                st.rerun()
-        except:
-            st.session_state.storage_loaded = True
 
     # Define tabs based on progress
     tab_titles = ["📥 1. Enter Words"]
@@ -165,13 +147,6 @@ def main():
         # Update session state word_input from the text area
         if word_input != st.session_state.word_input:
             st.session_state.word_input = word_input
-        
-        # Persist input
-        if "last_persisted_words" not in st.session_state:
-            st.session_state.last_persisted_words = None
-        if st.session_state.word_input != st.session_state.last_persisted_words:
-            local_storage.setItem("vocabulary_words", st.session_state.word_input)
-            st.session_state.last_persisted_words = st.session_state.word_input
 
         if st.button("Fetch Word Data", type="primary", use_container_width=True):
             words = [w.strip() for w in word_input.split('\n') if w.strip()]
