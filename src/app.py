@@ -255,11 +255,11 @@ def main():
                     "status": st.column_config.TextColumn("Status", disabled=True),
                     "word": st.column_config.TextColumn("Word", width="medium"),
                     "pos": st.column_config.TextColumn("POS", width="small"),
-                    "ipa": st.column_config.TextColumn("IPA", width="small"),
-                    "cf": st.column_config.TextColumn("Context (cf)", width="small"),
+                    "ipa": None, # Hide IPA
+                    "cf": None, # Hide Context (cf)
                     "meaning": st.column_config.TextColumn("Meaning", width="large"),
-                    "translation": st.column_config.TextColumn("Translation (Vi)", width="medium"),
-                    "examples": st.column_config.TextColumn("Examples", width="large"),
+                    "translation": st.column_config.TextColumn("Translation", width="medium"),
+                    "examples": None, # Hide Examples
                 },
                 num_rows="dynamic",
                 key="vocab_editor",
