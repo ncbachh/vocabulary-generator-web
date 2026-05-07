@@ -161,16 +161,21 @@ def main():
                 
                 for i, word in enumerate(words):
                     status_text.text(f"Fetching: {word}...")
-                    senses = fetch_word_data(word)
+                    result = fetch_word_data(word)
                     
-                    if senses and use_vi and api_key:
-                        for sense in senses:
-                            pos = sense['word_info']['pos']
-                            definition = sense['meaning_data']['def']
-                            translation = translate_meaning_to_vi(word, pos, definition, api_key)
-                            sense['vi_translation'] = translation
-                    
-                    new_data.extend(flatten_senses(word, senses))
+                    if result:
+                        headword, senses = result
+                        if use_vi and api_key:
+                            for sense in senses:
+                                pos = sense['word_info']['pos']
+                                definition = sense['meaning_data']['def']
+                                translation = translate_meaning_to_vi(headword, pos, definition, api_key)
+                                sense['vi_translation'] = translation
+                        
+                        new_data.extend(flatten_senses(headword, senses))
+                    else:
+                        new_data.extend(flatten_senses(word, None))
+                        
                     progress_bar.progress((i + 1) / len(words))
                     time.sleep(0.5)
                 
@@ -209,18 +214,20 @@ def main():
                             word = row['word'].strip()
                             status_text.text(f"Fetching: {word}...")
                             
-                            senses = fetch_word_data(word)
-                            if senses:
+                            result = fetch_word_data(word)
+                            if result:
+                                headword, senses = result
                                 sense = senses[0]
                                 info = sense.get('word_info', {})
                                 m_data = sense.get('meaning_data', {})
                                 
                                 if use_vi and api_key:
-                                    translation = translate_meaning_to_vi(word, info.get('pos', ''), m_data.get('def', ''), api_key)
+                                    translation = translate_meaning_to_vi(headword, info.get('pos', ''), m_data.get('def', ''), api_key)
                                 else:
                                     translation = ""
 
                                 row.update({
+                                    "word": headword,
                                     "pos": info.get('pos', ''),
                                     "ipa": f"{info.get('ipa_bre', '')} {info.get('ipa_ame', '')}".strip(),
                                     "cf": m_data.get('cf', ''),
@@ -228,7 +235,7 @@ def main():
                                     "examples": sense.get('examples', ''),
                                     "translation": translation,
                                     "status": "✅ Synced",
-                                    "last_fetched_word": word
+                                    "last_fetched_word": headword
                                 })
                             else:
                                 row['status'] = "❌ Not Found"

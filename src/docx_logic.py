@@ -160,10 +160,18 @@ def fetch_word_data(word):
     try:
         response = requests.get(base_url, headers=headers)
         if response.status_code != 200:
-            return None
+            # Fallback to search URL if direct path fails (for inflected words)
+            search_url = f"https://www.oxfordlearnersdictionaries.com/search/english/?q={url_word}"
+            response = requests.get(search_url, headers=headers)
+            if response.status_code != 200:
+                return None
             
         soup = BeautifulSoup(response.content, 'html.parser')
         
+        # Extract headword from the page (Normalization)
+        headword_tag = soup.find('h1', class_='headword')
+        headword = headword_tag.get_text().strip() if headword_tag else clean_word
+
         # 1. Fetch current page data
         word_info = get_pos_ipa(soup)
         all_senses = _parse_senses_from_soup(soup, word_info)
@@ -220,8 +228,11 @@ def fetch_word_data(word):
                                 all_senses.extend(_parse_senses_from_soup(s_soup, s_info))
                         except Exception:
                             continue
+                
+        if not all_senses:
+            return None
                             
-        return all_senses
+        return headword, all_senses
     except Exception:
         return None
 
@@ -403,22 +414,23 @@ def create_vocabulary_docx(words: list[str], title: str = "VOCABULARY LIST", use
         if progress_callback:
             progress_callback(i, len(words), norm_word, status="Fetching...")
         
-        senses = fetch_word_data(norm_word)
-        if senses:
+        result = fetch_word_data(norm_word)
+        if result:
+            headword, senses = result
             # Handle translation if requested
             if use_vi_translation and api_key:
                 if progress_callback:
-                    progress_callback(i, len(words), norm_word, status="Translating...")
+                    progress_callback(i, len(words), headword, status="Translating...")
                 
                 for sense in senses:
                     pos = sense['word_info']['pos']
                     definition = sense['meaning_data']['def']
-                    translation = translate_meaning_to_vi(norm_word, pos, definition, api_key)
+                    translation = translate_meaning_to_vi(headword, pos, definition, api_key)
                     sense['vi_translation'] = translation
             
-            all_word_data.append((norm_word, senses))
+            all_word_data.append((headword, senses))
             if progress_callback:
-                progress_callback(i, len(words), norm_word, status="Success")
+                progress_callback(i, len(words), headword, status="Success")
         else:
             failed_words.append(word)
             if progress_callback:

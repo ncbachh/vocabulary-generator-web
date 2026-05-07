@@ -11,11 +11,20 @@ from docx_logic import fetch_word_data, create_vocabulary_docx
 class TestVocabularyLogic(unittest.TestCase):
     def test_fetch_word_data_valid(self):
         """Test fetching data for a common word."""
-        data = fetch_word_data("apple")
-        self.assertIsNotNone(data)
+        result = fetch_word_data("apple")
+        self.assertIsNotNone(result)
+        headword, data = result
+        self.assertEqual(headword, "apple")
         self.assertGreater(len(data), 0)
         self.assertIn("pos", data[0]["word_info"])
         self.assertIn("def", data[0]["meaning_data"])
+
+    def test_fetch_word_data_normalization(self):
+        """Test that inflected words are normalized."""
+        result = fetch_word_data("books")
+        self.assertIsNotNone(result)
+        headword, data = result
+        self.assertEqual(headword, "book")
 
     def test_fetch_word_data_invalid(self):
         """Test fetching data for a non-existent word."""
