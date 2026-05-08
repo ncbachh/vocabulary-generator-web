@@ -265,7 +265,7 @@ def translate_meaning_to_vi(word, pos, definition, api_key):
         """
     
     payload = {
-        "model": "arcee-ai/trinity-large-preview:free",
+        "model": "nvidia/nemotron-3-nano-30b-a3b:free",
         "messages": [
             {"role": "user", "content": prompt}
         ]
