@@ -125,6 +125,8 @@ def main():
         st.session_state.word_input = ""
     if "step" not in st.session_state:
         st.session_state.step = 1
+    if "notifications" not in st.session_state:
+        st.session_state.notifications = {}
 
     # Define tabs based on progress
     tab_titles = ["📥 1. Enter Words"]
@@ -137,6 +139,9 @@ def main():
 
     # 1. Input Section
     with tabs[0]:
+        if "step1" in st.session_state.notifications:
+            st.success(st.session_state.notifications["step1"])
+
         st.subheader("Step 1: Enter Your Word List")
         word_input = st.text_area(
             "Enter words (one per line):", 
@@ -151,6 +156,7 @@ def main():
             st.session_state.word_input = word_input
 
         if st.button("Fetch Word Data", type="primary", use_container_width=True):
+            st.session_state.notifications.pop("step1", None)
             input_words = [w.strip() for w in word_input.split('\n') if w.strip()]
             if not input_words:
                 st.session_state.vocab_data = []
@@ -171,7 +177,7 @@ def main():
                 words_to_fetch = [w for w in input_words if w.lower() not in existing_words]
                 
                 if not words_to_fetch:
-                    st.success("List synchronized (deletions applied). No new words to fetch.")
+                    st.session_state.notifications["step1"] = "✅ List synchronized (deletions applied). No new words to fetch."
                     st.session_state.step = 2
                     st.rerun()
                 
@@ -204,12 +210,15 @@ def main():
                 # Append new data
                 st.session_state.vocab_data.extend(new_fetched_data)
                 st.session_state.step = 2
-                status_text.success(f"Synchronized! Added {len(words_to_fetch)} new word(s).")
+                st.session_state.notifications["step1"] = f"✅ Fetch completed. Added {len(words_to_fetch)} new word(s). You can now move to Review and Edit."
                 st.rerun()
 
     # 2. Editor Section
     if len(tab_titles) > 1:
         with tabs[1]:
+            if "step2" in st.session_state.notifications:
+                st.success(st.session_state.notifications["step2"])
+
             st.subheader("Step 2: Review and Customize")
             st.info("💡 **Tip:** To add or remove words, update your list in Tab 1 and click Fetch again. This table is fixed for editing existing data.")
             
@@ -227,6 +236,7 @@ def main():
             
             with col_btn1:
                 if st.button("🔍 Fetch Missing/Unfetched Data", use_container_width=True):
+                    st.session_state.notifications.pop("step2", None)
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
@@ -269,7 +279,7 @@ def main():
                             progress_bar.progress((i + 1) / len(rows_to_fetch))
                             time.sleep(0.5)
                         
-                        status_text.success("Processing complete!")
+                        st.session_state.notifications["step2"] = "✅ Fetch completed. All words are now synchronized."
                         st.rerun()
 
             # Display Data Editor
@@ -298,11 +308,13 @@ def main():
             st.markdown("---")
             if st.button("Confirm & Go to Export ➔", type="primary", use_container_width=True):
                 st.session_state.step = 3
+                st.session_state.notifications["step2"] = "✅ Review completed. You can now proceed to Export."
                 st.rerun()
 
     # 3. Export Section
     if len(tab_titles) > 2:
         with tabs[2]:
+            st.success("✅ DOCX generated successfully.")
             st.subheader("Step 3: Download Your List")
             
             filename_base = st.text_input("Enter filename (without extension):", value="vocabulary_list")
