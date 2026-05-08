@@ -176,7 +176,7 @@ def fetch_word_data(word):
         word_info = get_pos_ipa(soup)
         all_senses = _parse_senses_from_soup(soup, word_info)
         
-        # 2. Look for other POS entries (Option A: Automatic)
+        # 2. Look for other POS entries
         def normalize_url(url):
             return url.split('?')[0].split('#')[0].rstrip('/')
 

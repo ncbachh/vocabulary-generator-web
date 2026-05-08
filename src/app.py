@@ -84,7 +84,7 @@ def reconstruct_data_for_docx(df_rows):
             },
             "meaning_data": {
                 "cf": row.get('cf', ''),
-                "prefix": "", # We merged prefix into meaning for editing
+                "prefix": "",
                 "def": row.get('meaning', '')
             },
             "examples": row.get('examples', ''),
@@ -166,7 +166,6 @@ def main():
                 input_words_lower = {w.lower() for w in input_words}
                 
                 # 1. Synchronize Deletions: Remove rows no longer in the input text area
-                # We check against 'last_fetched_word' which is the key for what we requested
                 st.session_state.vocab_data = [
                     row for row in st.session_state.vocab_data 
                     if row.get('last_fetched_word', '').lower() in input_words_lower
@@ -323,7 +322,6 @@ def main():
                 st.error("Invalid filename. Please avoid special characters.")
             else:
                 # Generate document bytes automatically
-                # This is fast since it only involves local data processing
                 reconstructed = reconstruct_data_for_docx(st.session_state.vocab_data)
                 doc = generate_docx_from_data(reconstructed, title=filename_base.upper())
                 
@@ -331,7 +329,7 @@ def main():
                 doc.save(buffer)
                 buffer.seek(0)
                 
-                st.write("") # Spacer
+                st.write("")
                 st.download_button(
                     label="📥 Download .docx File",
                     data=buffer,
