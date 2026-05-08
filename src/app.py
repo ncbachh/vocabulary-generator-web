@@ -151,15 +151,35 @@ def main():
             st.session_state.word_input = word_input
 
         if st.button("Fetch Word Data", type="primary", use_container_width=True):
-            words = [w.strip() for w in word_input.split('\n') if w.strip()]
-            if not words:
-                st.error("Please enter some words first.")
+            input_words = [w.strip() for w in word_input.split('\n') if w.strip()]
+            if not input_words:
+                st.session_state.vocab_data = []
+                st.info("List cleared.")
+                st.rerun()
             else:
-                new_data = []
+                input_words_lower = {w.lower() for w in input_words}
+                
+                # 1. Synchronize Deletions: Remove rows no longer in the input text area
+                # We check against 'last_fetched_word' which is the key for what we requested
+                st.session_state.vocab_data = [
+                    row for row in st.session_state.vocab_data 
+                    if row.get('last_fetched_word', '').lower() in input_words_lower
+                ]
+                
+                # 2. Identify New Words to Fetch
+                existing_words = {row['last_fetched_word'].lower() for row in st.session_state.vocab_data}
+                words_to_fetch = [w for w in input_words if w.lower() not in existing_words]
+                
+                if not words_to_fetch:
+                    st.success("List synchronized (deletions applied). No new words to fetch.")
+                    st.session_state.step = 2
+                    st.rerun()
+                
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
-                for i, word in enumerate(words):
+                new_fetched_data = []
+                for i, word in enumerate(words_to_fetch):
                     status_text.text(f"Fetching: {word}...")
                     result = fetch_word_data(word)
                     
@@ -172,28 +192,33 @@ def main():
                                 translation = translate_meaning_to_vi(headword, pos, definition, api_key)
                                 sense['vi_translation'] = translation
                         
-                        new_data.extend(flatten_senses(headword, senses))
+                        # Store 'word' (exactly as user typed it) as the tracking key
+                        new_fetched_data.extend(flatten_senses(word, senses))
                     else:
-                        new_data.extend(flatten_senses(word, None))
+                        # Add failure record so it's not re-fetched unless removed/re-added in Tab 1
+                        new_fetched_data.extend(flatten_senses(word, None))
                         
-                    progress_bar.progress((i + 1) / len(words))
+                    progress_bar.progress((i + 1) / len(words_to_fetch))
                     time.sleep(0.5)
                 
-                st.session_state.vocab_data = new_data
+                # Append new data
+                st.session_state.vocab_data.extend(new_fetched_data)
                 st.session_state.step = 2
-                status_text.success("Initial fetch complete! Proceed to the 'Review & Edit' tab.")
+                status_text.success(f"Synchronized! Added {len(words_to_fetch)} new word(s).")
                 st.rerun()
 
     # 2. Editor Section
     if len(tab_titles) > 1:
         with tabs[1]:
             st.subheader("Step 2: Review and Customize")
-            st.info("Review the fetched data below. You can edit any cell directly. Use 'Fetch Missing Data' to try again for failed words.")
+            st.info("💡 **Tip:** To add or remove words, update your list in Tab 1 and click Fetch again. This table is fixed for editing existing data.")
             
-            # Detection logic for status
+            # Status Detection Logic
             for row in st.session_state.vocab_data:
-                if row['word'].lower() != row['last_fetched_word'].lower():
+                # If the word field was edited manually and differs from the last successful fetch
+                if row.get('last_fetched_word') and row['word'].lower() != row['last_fetched_word'].lower():
                     row['status'] = "⚠️ Unfetched"
+                # If it was a 'Not Found' but now has a meaning, it's 'Manual'
                 elif "Not Found" in row['status'] and row['meaning']:
                     row['status'] = "📝 Manual"
             
@@ -201,22 +226,23 @@ def main():
             col_btn1, col_btn2 = st.columns([1, 1])
             
             with col_btn1:
-                if st.button("🔍 Fetch Missing Data", use_container_width=True):
+                if st.button("🔍 Fetch Missing/Unfetched Data", use_container_width=True):
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
                     rows_to_fetch = [r for r in st.session_state.vocab_data if "Unfetched" in r['status'] or "Not Found" in r['status']]
                     
                     if not rows_to_fetch:
-                        st.info("No missing data to fetch.")
+                        st.info("No missing or unfetched words found.")
                     else:
                         for i, row in enumerate(rows_to_fetch):
-                            word = row['word'].strip()
-                            status_text.text(f"Fetching: {word}...")
+                            target_word = row['word'].strip()
+                            status_text.text(f"Fetching: {target_word}...")
                             
-                            result = fetch_word_data(word)
+                            result = fetch_word_data(target_word)
                             if result:
                                 headword, senses = result
+                                # Take the first sense found for manual row updates
                                 sense = senses[0]
                                 info = sense.get('word_info', {})
                                 m_data = sense.get('meaning_data', {})
@@ -243,7 +269,7 @@ def main():
                             progress_bar.progress((i + 1) / len(rows_to_fetch))
                             time.sleep(0.5)
                         
-                        status_text.success("Fetch complete!")
+                        status_text.success("Processing complete!")
                         st.rerun()
 
             # Display Data Editor
@@ -261,7 +287,7 @@ def main():
                     "translation": st.column_config.TextColumn("Translation", width="medium"),
                     "examples": None, # Hide Examples
                 },
-                num_rows="dynamic",
+                num_rows="fixed", # Disable manual Add/Delete
                 key="vocab_editor",
                 use_container_width=True
             )
