@@ -8,20 +8,21 @@ For detailed instructions on how to use this tool, please refer to the [User Man
 ## ✨ Features
 
 - **Batch Word Processing:** Input a list of English words (one per line) and process them all at once.
-- **Accurate Definitions:** Scrapes the Oxford Learner's Dictionary for high-quality, up-to-date word data.
+- **Accurate & Comprehensive Data:** Scrapes the Oxford Learner's Dictionary for high-quality data. Now supports fetching multiple parts of speech (POS) for a single word and better handles inflected forms (e.g., "books" -> "book").
+- **Interactive Review & Edit:** A new dedicated step allows you to review, edit, or manually add data in a table before generating the final document.
 - **Multi-Sense Support:** Fetches up to three different senses/meanings for each word.
 - **IPA Pronunciations:** Includes both British (BrE) and American (NAmE) phonetic transcriptions.
 - **Contextual Examples:** Provides up to two example sentences for each word meaning.
 - **AI-Powered Translation (Optional):** Uses OpenRouter API to generate natural-sounding Vietnamese translations for each definition.
 - **Professional Formatting:** Outputs a clean, tabular Word document ready for printing or study.
-- **Progress Tracking:** Real-time feedback and a progress bar during document generation.
+- **Progress Tracking:** Real-time feedback and progress bars during data fetching.
 
 ## 🛠 Tech Stack
 
 - **Frontend:** [Streamlit](https://streamlit.io/) (Interactive web app framework)
 - **Scraping:** [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) & `requests`
 - **Document Generation:** [python-docx](https://python-docx.readthedocs.io/)
-- **AI Integration:** [OpenRouter API](https://openrouter.ai/) (via `requests`)
+- **AI Integration:** [OpenRouter API](https://openrouter.ai/) (using `nvidia/nemotron-3-nano-30b-a3b:free`)
 - **Testing:** `unittest`
 
 ## 📂 Project Structure
@@ -86,7 +87,7 @@ The app will open in your default browser at `http://localhost:8501`.
 
 ## 🤖 How the Translation Feature Works
 
-The application uses the `arcee-ai/trinity-large-preview:free` model via OpenRouter to translate English definitions. The prompt is specifically engineered to return only the single most appropriate Vietnamese equivalent, avoiding lengthy explanations or full-sentence translations.
+The application uses the `nvidia/nemotron-3-nano-30b-a3b:free` model via OpenRouter to translate English definitions. The prompt is specifically engineered to return only the single most appropriate Vietnamese equivalent, avoiding lengthy explanations or full-sentence translations.
 
 ## 🧪 Running Tests
 

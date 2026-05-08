@@ -18,25 +18,24 @@ Ever found yourself manually copying and pasting word definitions, IPA transcrip
 
 ## 🛠 How It Works
 
-The app follows a simple 3-step workflow to generate your vocabulary list:
+The app follows a refined 3-step workflow to give you full control over your vocabulary list:
 
-1.  **Input:** You provide a list of English words.
-2.  **Scrape & Translate:** The app fetches the part of speech, pronunciations, meanings, and examples from the dictionary. If enabled, it also uses AI to find the perfect Vietnamese equivalent.
-3.  **Generate:** Everything is neatly organized into a professional table within a `.docx` file, ready for you to download.
+1.  **📥 Input:** Enter your word list and fetch data from the dictionary.
+2.  **🔍 Review & Edit:** Inspect the results in an interactive table. You can modify definitions, add translations, or manually fix words that weren't found.
+3.  **🚀 Export:** Download your customized list as a professionally formatted `.docx` file.
 
 ---
 
 ## 🔑 Getting Started with AI Translation
 
 To enable the **Vietnamese Translation** feature, the app uses **OpenRouter**, a gateway to modern AI models.
-The default model is a free model that provides good translations, but you can also choose from more advanced models (some may require a small amount of credit).
+The default model is `nvidia/nemotron-3-nano-30b-a3b:free`, which provides fast and reliable translations.
 
 ### 1. How to get an OpenRouter API Key
 1.  Go to [OpenRouter.ai](https://openrouter.ai/).
 2.  Sign up or log in.
 3.  Navigate to the **Keys** section (usually under your profile settings).
 4.  Click **"Create Key"**, give it a name (e.g., "Vocabulary App"), and copy the generated key.
-    - *Note: You may need to add a small amount of credit (e.g., $1-5) to your account to use certain models, but many "free" models are also available.*
 
 ### 2. How to use your API Key in the app
 1.  Open the **Vocabulary Generator Web** app.
@@ -47,29 +46,36 @@ The default model is a free model that provides good translations, but you can a
 
 ## 📝 Step-by-Step Guide
 
-### Step 1: Enter Your Words
-In the main text area, type or paste your list of English words. Please enter **one word per line**.
+### Step 1: Enter Your Words (Tab 1)
+In the **"📥 1. Enter Words"** tab, type or paste your list of English words. Please enter **one word per line**.
 > **Example:**
 > ```text
 > serendipity
 > resilient
 > ambiguous
 > ```
+Click **"Fetch Word Data"**. The app will scrape the dictionary (and translate if enabled) and then automatically move you to the next step.
 
-### Step 2: Choose a Filename
-In the "Filename" box, give your document a name (e.g., `Unit_1_Vocab`). You don't need to add `.docx`; the app handles that for you.
+### Step 2: Review and Customize (Tab 2)
+In the **"🔍 2. Review & Edit"** tab, you'll see a table containing all the fetched information.
 
-### Step 3: Generate
-Click the **"Generate Document"** button. You'll see a progress bar and status updates as the app processes each word.
+-   **Edit Data:** Click on any cell in the **Word**, **POS**, **Meaning**, or **Translation** columns to edit the text directly.
+-   **Manual Entry:** If a word was marked as `❌ Not Found`, you can manually type in its meaning and translation. Its status will change to `📝 Manual`.
+-   **Fetch Missing:** If you edited a word or want to retry a failed fetch, click **"🔍 Fetch Missing/Unfetched Data"** at the top.
+-   **Syncing:** To add or remove words from your list, go back to **Tab 1**, update the text area, and click **"Fetch"** again.
 
-### Step 4: Download
-Once the process is complete, a **"Download .docx File"** button will appear. Click it to save your new study guide to your computer!
+Once you are happy with the data, click **"Confirm & Go to Export ➔"**.
+
+### Step 3: Download Your List (Tab 3)
+In the **"🚀 3. Export"** tab:
+1.  Enter your desired **Filename** (without the `.docx` extension).
+2.  Click the **"📥 Download .docx File"** button.
 
 ---
 
 ## 💡 Pro Tips
-- **Keep it Simple:** For better results, use root words (e.g., `run` instead of `running`).
-- **Review Failed Words:** If a word couldn't be found in the dictionary, the app will let you know at the end of the process.
+- **Inflections Handled:** The app now automatically handles plural or inflected forms (e.g., searching for `books` will correctly find `book`).
+- **Multiple Meanings:** For many words, the app fetches multiple parts of speech (e.g., both the noun and verb forms of `present`).
 - **Format Matters:** The final document uses a clean table layout, making it easy to add your own notes or highlight important sections.
 
 ---
